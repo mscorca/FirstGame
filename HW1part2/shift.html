@@ -1,0 +1,447 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<title>Cube Escape</title>
+		<style>
+		canvas { width: 100%; height: 100% }
+		body {
+		  font-family: Georgia, Helvetica, sans-serif;
+		  font-weight: bold;
+		  margin: 0;
+		  overflow: hidden;
+		  padding: 0;
+		  -webkit-touch-callout: none;
+		  -webkit-user-select: none;
+		  -khtml-user-select: none;
+		  -moz-user-select: none;
+		  -ms-user-select: none;
+		  user-select: none;
+		}
+		#title {
+		  font-size: 50px;
+		  position: absolute;
+		  text-align: center;
+		  top:0%;
+		  width: 50%;
+		  left:25%;
+		  z-index: 100;
+		  color:white;
+
+		}
+		#shifts {
+		  font-size: 50px;
+		  position: absolute;
+		  text-align: center;
+		  bottom: 10px;
+		  color:white;
+		  width: 30%;
+		  left: 35%;
+		  z-index: 100;
+		}
+		#shiftsrem {
+		  font-size: 50px;
+		  position: absolute;
+		  text-align: center;
+		  bottom: 10px;
+		  color:white;
+		}
+		</style>
+	</head>
+	<body>
+		<script src="js/three.min.js"></script>
+		<script src="js/jquery.min.js"></script>
+		<script src="js/OrbitControls.js"></script>
+		<script src='js/THREEx.KeyboardState.js'></script>
+		<script>
+		// Matt Scorca
+		// mscorca@ucsc.edu
+		// Worked with Ian Winter
+			var scene = new THREE.Scene();
+			var shifts=6;
+
+			// global current position of selection
+			var currenti = 0;
+			var currentj = 0;
+			
+			// keyboard listener
+			//var keyboard = new THREEx.KeyboardState();
+
+			// CAMERA
+			var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
+			var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
+			camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+			
+			var wallArray = [];
+			var cubeArr = new Array(8);
+			for (var i = 0; i < 8; i++) {
+				cubeArr[i] = new Array(8);
+			}
+
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+			//Light
+			var light = new THREE.SpotLight();
+			light.position.set( 400, 800, -400 );
+			scene.add(light);
+			
+			// enable shadows on the renderer
+			renderer.shadowMapEnabled = true;
+			// enable shadows for a light
+			light.castShadow = true;
+			// enable shadows for an object
+			
+			//Robot
+			// API: THREE.CylinderGeometry(topRadius, bottomRadius, height, segmentsRadius, segmentsHeight)
+			var player = new THREE.Mesh(new THREE.CylinderGeometry(10, 12, 60, 50, 50, false), new THREE.MeshPhongMaterial({
+				// light
+				specular: '#a9fcff',
+				// intermediate
+				color: '#00abb1',
+				// dark
+				emissive: '#006063',
+				shininess: 30
+			  }));
+			  player.overdraw = true;
+			  player.position.x = 120;
+			  player.position.y = 40;
+			  player.position.z = 160;
+			  player.I = 3;
+			  player.J = 4;
+			  
+			//Head
+			var head = new THREE.Mesh(new THREE.SphereGeometry(20, 20, 20), new THREE.MeshNormalMaterial());
+		//	head.overdraw = true;
+			head.position.x = 0;
+			head.position.y = 40;
+			head.position.z = 0;
+			player.add(head);
+			
+			scene.add(player);
+
+			// add subtle ambient lighting
+			var ambientLight = new THREE.AmbientLight(0x222222);
+			scene.add(ambientLight);
+			  
+			// creates the matrix of cubes  
+			cubeArray = new THREE.Object3D();
+			for(var i=0;i<8;i++){
+				for(var j=0;j<8;j++){
+					var mat = new THREE.MeshLambertMaterial({color: 0xFFFFFF});      
+					var geo = new THREE.CubeGeometry(30, 30, 30);
+					var mesh = new THREE.Mesh(geo, mat);
+					mesh.position.x = (i*40);
+					mesh.position.y = 10;
+					mesh.position.z = (j*40);
+					mesh.ID = (i+1)+(j*8);
+					mesh.castShadow = mesh.receiveShadow = true;
+					cubeArray.add(mesh);
+					cubeArr[i][j] = mesh;
+				}
+			}
+			scene.add(cubeArray);
+			
+			// function constructor for wall class
+			// has an i and a j and a mesh
+			function wall(i, j){
+				var mat = new THREE.MeshLambertMaterial({color: 0xFFFF00});      
+				var geo = new THREE.CubeGeometry(30, 30, 30);
+				var mesh = new THREE.Mesh(geo, mat); 
+				mesh.i = i;
+				mesh.j = j;
+				mesh.ID = 'wall';
+				mesh.position.x = (i*40);
+				mesh.position.y = 40;
+				mesh.position.z = (j*40);
+				scene.add(mesh);
+				wallArray.push(mesh);
+			}
+	  		
+			function level1(){
+			for(var x=0;x<8;x++){
+				for(var y=0;y<8;y++){
+					// creates a wall at every block except these specifically chosen ones
+					if((x!=0||y!=4)&&(x!=1||y!=6)&&(x!=2||y!=2)&&(x!=1||y!=5)&&(x!=5||y!=4)&&(x!=6||y!=7)&&(x!=7||y!=1)&&(x!=3||y!=4)){
+						var newWall = new wall(x,y);
+					}
+				}
+			}
+			
+			
+			}
+			level1();
+			function shift(type){
+				// vertical shift
+				if(type=='vert'){
+					if(player.I!=currenti){
+						for(var idx = 0; idx < wallArray.length; idx++){
+							if(wallArray[idx].i === currenti){
+								if(wallArray[idx].j == 7){
+									wallArray[idx].j = 0;
+									wallArray[idx].position.z = 0;
+								}
+								else{
+									wallArray[idx].j++;
+									wallArray[idx].position.z += 40;
+								}
+							}
+						}
+					}
+					else{
+						for(var idx = 0; idx < wallArray.length; idx++){
+							if(wallArray[idx].i === currenti){
+								if(wallArray[idx].j==(player.J-1)){
+								return;
+								}
+							}
+						}
+						for(var idx = 0; idx < wallArray.length; idx++){
+							if(wallArray[idx].i === currenti){
+								if(wallArray[idx].j == 7){
+									wallArray[idx].j = 0;
+									wallArray[idx].position.z = 0;
+								}
+								else{
+									wallArray[idx].j++;
+									wallArray[idx].position.z += 40;
+								}
+							}
+						}
+						
+					}
+					shifts--;
+				}
+				// horiz shift
+				if(type=='horizontal'){
+					if(player.J!=currentj){
+						for(var idx = 0; idx < wallArray.length; idx++){
+							if(wallArray[idx].j === currentj){
+								if(wallArray[idx].i == 7){
+									wallArray[idx].i = 0;
+									wallArray[idx].position.x = 0;
+								}
+								else{
+									wallArray[idx].i++;
+									wallArray[idx].position.x += 40;
+								}
+							}
+						}
+					}
+					else{
+						for(var idx = 0; idx < wallArray.length; idx++){
+							if(wallArray[idx].j === currentj){
+								if(wallArray[idx].i==(player.I-1)){
+								return;
+								}
+							}
+						}
+						for(var idx = 0; idx < wallArray.length; idx++){
+							if(wallArray[idx].j === currentj){
+								if(wallArray[idx].i == 7){
+									wallArray[idx].i = 0;
+									wallArray[idx].position.x = 0;
+								}
+								else{
+									wallArray[idx].i++;
+									wallArray[idx].position.x += 40;
+								}
+							}
+						}
+					}
+					shifts--;
+				}
+				
+			}
+			
+			function highlightCubes(){
+				// clear board
+				for(var i = 0; i < cubeArr.length; i++){
+					for(var j = 0; j < cubeArr.length; j++){
+					cubeArr[i][j].material.color.setHex(0xFFFFFF);
+					}
+				}
+				for(var w=0;w<wallArray.length;w++){
+					wallArray[w].material.color.setHex(0xF0FFF0);		
+				}
+				// high light after clear
+				for(var j = 0; j < cubeArr.length; j++){
+					cubeArr[currenti][j].material.color.setHex(0xFF00F0);
+					for(var w=0;w<wallArray.length;w++){
+						if(wallArray[w].i==currenti&&wallArray[w].j==j){
+							wallArray[w].material.color.setHex(0xFF00F0);
+						}
+					}
+				}
+				for(var i = 0; i < cubeArr.length; i++){
+					cubeArr[i][currentj].material.color.setHex(0xFF00F0);
+					for(var w=0;w<wallArray.length;w++){
+						if(wallArray[w].i==i&&wallArray[w].j==currentj){
+							wallArray[w].material.color.setHex(0xFF00F0);
+						}
+					}
+				}	
+			}
+			
+			//Skybox 
+			
+			var imagePrefix = "images/dawnmountain-";
+			var directions  = ["xpos", "xneg", "ypos", "yneg", "zpos", "zneg"];
+			var imageSuffix = ".png";
+			var skyGeometry = new THREE.CubeGeometry( 5000, 5000, 5000 );	
+			
+			var materialArray = [];
+			for (var i = 0; i < 6; i++)
+				materialArray.push( new THREE.MeshBasicMaterial({
+					map: THREE.ImageUtils.loadTexture( imagePrefix + directions[i] + imageSuffix ),
+					side: THREE.BackSide
+				}));
+			var skyMaterial = new THREE.MeshFaceMaterial( materialArray );
+			var skyBox = new THREE.Mesh( skyGeometry, skyMaterial );
+			scene.add( skyBox );
+			
+			
+			
+			camera.position.z = 650;
+			camera.position.y = 500;
+			camera.position.x = 140;
+			camera.rotation.x = -44.7;
+			
+			$('body').keyup( function(e){ 
+					 var code = (e.keyCode ? e.keyCode : e.which);
+				if(code == 38 && currentj > 0){
+					currentj -= 1;
+									highlightCubes();
+				}
+				// down
+				if(code == 40 && currentj < 7){
+					currentj += 1;
+									highlightCubes();
+				}
+				// left
+				if(code == 37 && currenti > 0){
+					currenti -= 1;
+									highlightCubes();
+				}
+				// right
+				if(code == 39 && currenti < 7){
+					currenti += 1;
+									highlightCubes();
+				}
+				// shift vert
+ 				if(code == 13){
+					shift('vert');
+				}
+				// shift horiz
+				if(code == 32){
+					shift('horizontal');
+				}
+				if(code == 87) {
+					checkMove('W');
+				}
+				if(code == 65) {
+					checkMove('A');
+				}
+				if(code == 83) {
+					checkMove('S');
+				}
+				if(code == 68) {
+					checkMove('D');
+				}
+				});
+				
+				
+			function checkMove(move){
+				if(player.I==7||player.I==0||player.J==7||player.I==0){
+				var r=confirm("You win!. Play Again?");
+					if (r==true){
+					  document.location.reload(true);
+					}
+					else{
+					  window.location='http://people.ucsc.edu/~mscorca/';
+					}
+				}
+				if (move=='W'){
+					if(player.J>0){
+						for(var x=0; x<wallArray.length; x++){
+							if(wallArray[x].j==(player.J-1)&&wallArray[x].i==player.I){
+								return;
+							}
+						}
+						player.position.z-=40;
+						player.J--;
+					}
+				}
+				if (move=='A'){
+					if(player.I>0){
+						for(var x=0; x<wallArray.length; x++){
+							if(wallArray[x].i==(player.I-1)&&wallArray[x].j==player.J){
+								return;
+							}
+						}
+						player.position.x-=40;
+						player.I--;
+					}
+				}
+				if (move=='S'){
+					if(player.J<7){
+						for(var x=0; x<wallArray.length; x++){
+							if(wallArray[x].j==(player.J+1)&&wallArray[x].i==player.I){
+							return;
+							}
+						}
+						player.position.z+=40;
+						player.J++;
+					}
+				}
+				if (move=='D'){
+					if(player.I<7){
+						for(var x=0; x<wallArray.length; x++){
+							if(wallArray[x].i==(player.I+1)&&wallArray[x].j==player.J){
+							return;
+							}
+						}
+						player.position.x+=40;
+						player.I++;
+					}
+				}
+			}
+			var gameOver = false;
+			//call highlightCubes once
+			highlightCubes();
+			
+			var camShiftVal = 1;
+			var camShift = 0;
+			function animate(t) {
+				$('#left').html(shifts);
+				if(shifts < 1 && gameOver == false){
+					gameOver=true;
+					var r=confirm("Game Over. Try Again?");
+					if (r==true){
+					  document.location.reload(true);
+					}
+					else{
+					  window.location='http://people.ucsc.edu/~mscorca/';
+					}
+				}
+				if(camShift === 75){
+					camShift = 0;
+					camShiftVal = (camShiftVal * -1)
+				}
+				camera.position.z += camShiftVal;
+				camera.position.y += camShiftVal;
+				//camera.position.x += camShiftVal;
+				camShift++;
+				
+				renderer.render(scene, camera);
+				window.requestAnimationFrame(animate, renderer.domElement);
+			};
+			animate(new Date().getTime());
+
+
+		
+			$('body').append('<div id="title"><p>SHIFT ESCAPE</p></div>');
+			$('body').append('<div id="shifts">Shifts Left:<span id="left"></span></div>');
+		</script>
+	</body>
+</html>
